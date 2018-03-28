@@ -29,51 +29,50 @@ EsImporter.configure('http://localhost:9200')
 
 # generate some users
 users = (1..100).to_a.map do |i|
-	{	user_id: i,
-   		created_at: Time.now.iso8601,
-    	active: true,
-    	email: "USER_#{i}@example.com",
-    	country_code: 'US',
-    	friends: {
-      		US: ['joe']
-    	}
-  	}
+  { user_id: i,
+    created_at: Time.now.iso8601,
+    active: true,
+    email: "USER_#{i}@example.com",
+    country_code: 'US',
+    friends: {
+      US: ['joe']
+    }
+  }
 end
  
 # define elastic id, mapping and keywords for index; provide conversion procs
 importer = {
 
-	# name of the index
-	users: {
+  # name of the index
+  users: {
 
-  		# build id from single or multiple keys
-    	id_key: [:user_id, :created_at],
+  # build id from single or multiple keys
+  id_key: [:user_id, :created_at],
     	
-    	# define index mapping 
-    	mapping: {
-    		user_id: :text,
-    		active: :boolean,
-    		email: :text,
-    		created_at: :date,
-    		country_code: :text
-    	},
+  # define index mapping 
+  mapping: {
+    user_id: :text,
+    active: :boolean,
+    email: :text,
+    created_at: :date,
+    country_code: :text
+  },
+
+  # keyword generated is 'country_code.keyword'
+  keywords: [:country_code],
     	
-    	# keyword generated is 'country_code.keyword'
-    	keywords: [:country_code],
-    	
-    	converters: {
-    		# downcase existing field
-      		'email' => Proc.new{|attr| attr.downcase},
-      		
-      		# add new entry to array under existing nested key
-      		'friends.US' => Proc.new{|attr| attr << 'marry'},
-      		
-      		# generate new key as array
-      		'emails' => Proc.new{|doc| [doc['email']]},
-      		
-      		# generate new nested key as array
-      		'profile.emails' => Proc.new{|doc| [doc['email']]
-      	}
+  converters: {
+    # downcase existing field
+    'email' => Proc.new{|attr| attr.downcase},
+
+    # add new entry to array under existing nested key
+    'friends.US' => Proc.new{|attr| attr << 'marry'},
+
+    # generate new key as array
+    'emails' => Proc.new{|doc| [doc['email']]},
+
+    # generate new nested key as array
+    'profile.emails' => Proc.new{|doc| [doc['email']]}
     }
   }
 }
