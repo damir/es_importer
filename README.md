@@ -30,16 +30,18 @@ EsImporter.configure('http://localhost:9200')
 # generate some users
 users = (1..100).to_a.map do |i|
   { user_id: i,
+    first_name: 'John',
+    last_name: 'Doe',
     created_at: Time.now.iso8601,
     active: true,
     email: "USER_#{i}@example.com",
     country_code: 'US',
     friends: {
-      US: ['joe']
+      US: ['Joe']
     }
   }
 end
- 
+
 # define elastic id, mapping and keywords for index; provide conversion procs
 importer = {
 
@@ -48,8 +50,8 @@ importer = {
 
   # build id from single or multiple keys
   id_key: [:user_id, :created_at],
-    	
-  # define index mapping 
+
+  # define index mapping
   mapping: {
     user_id: :text,
     active: :boolean,
@@ -60,16 +62,16 @@ importer = {
 
   # keyword generated is 'country_code.keyword'
   keywords: [:country_code],
-    	
+
   converters: {
-    # downcase existing field
-    'email' => Proc.new{|attr| attr.downcase},
+    # downcase existing field value, second argument is document being processed
+    'email' => Proc.new{|attr, _| attr.downcase},
 
     # add new entry to array under existing nested key
-    'friends.US' => Proc.new{|attr| attr << 'marry'},
+    'friends.US' => Proc.new{|attr| attr << 'Marry'},
 
-    # generate new key as array
-    'emails' => Proc.new{|doc| [doc['email']]},
+    # generate new key with composite value
+    'full_name' => Proc.new{|doc| "#{doc['first_name']} #{doc['last_name']}"},
 
     # generate new nested key as array
     'profile.emails' => Proc.new{|doc| [doc['email']]}

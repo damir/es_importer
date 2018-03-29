@@ -46,7 +46,7 @@ module EsImporter
 
   # create es index
   def create_index!(es_index)
-    puts; puts "Creating #{es_index} index at #{@es_uri} ..."
+    puts "Creating #{es_index} index at #{@es_uri} ..."
     @client.indices.create index: es_index, body: {
       mappings: {
         es_index.to_s.chomp('s') => {
@@ -62,8 +62,8 @@ module EsImporter
 
   # create es index
   def delete_index!(es_index)
-    puts; puts "Deleting #{es_index} index at #{@es_uri} ..."
-    @client.indices.delete index: $test_index
+    puts "Deleting #{es_index} index at #{@es_uri} ..."
+    @client.indices.delete index: es_index
     rescue => error
       puts "Error deleting #{es_index} index. #{error.class}: #{error.message}"
       raise
