@@ -42,26 +42,38 @@ users = (1..100).to_a.map do |i|
   }
 end
 
-# define elastic id, mapping and keywords for index; provide conversion procs
+# define mapping and settings for index
+# provide conversion procs to transform the document
 importer = {
 
   # name of the index
+  # NOTE: type will be set to singular form of index name, ie. users => user
   users: {
 
   # build id from single or multiple keys
   id_key: [:user_id, :created_at],
 
   # define index mapping
+  # supply a type for a field or a hash with field definition
   mapping: {
-    user_id: :text,
+    user_id: :integer,
     active: :boolean,
-    email: :text,
+    email: {type: :text, analyzer: :my_analyzer},
     created_at: :date,
     country_code: :text
   },
 
+  # shortcut to set keywords to fields
   # keyword generated is 'country_code.keyword'
   keywords: [:country_code],
+
+  # index settings - add a custom analyzer with a ngram filter
+  settings: {
+    analysis: {
+      filter: {my_filter: {type: :ngram, min_gram: 3, max_gram: 4}},
+	    analyzer: {my_analyzer: {type: :custom, tokenizer: :standard, filter: [:lowercase, :my_filter]}}
+	  }
+  },
 
   converters: {
     # downcase existing field value, second argument is document being processed
@@ -104,7 +116,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/es_importer. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
+Bug reports and pull requests are welcome on GitHub at https://github.com/damir/es_importer. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
 
 ## License
 
@@ -112,4 +124,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the EsImporter project’s codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/es_importer/blob/master/CODE_OF_CONDUCT.md).
+Everyone interacting in the EsImporter project’s codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/damir/es_importer/blob/master/CODE_OF_CONDUCT.md).

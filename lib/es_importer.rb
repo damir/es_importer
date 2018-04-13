@@ -13,7 +13,7 @@ module EsImporter
     @client       = Elasticsearch::Client.new transport: transport
   end
 
-  # init es transport
+  # init ransport
   def transport
     # parse uri for host configuration
     es_uri = URI.parse(@es_uri)
@@ -44,51 +44,81 @@ module EsImporter
     @importers.update(importer)
   end
 
-  # create es index
-  def create_index!(es_index)
-    puts "Creating #{es_index} index at #{@es_uri} ..."
-    @client.indices.create index: es_index, body: {
+  # create index
+  def create_index!(index)
+    puts "Creating #{index} index at #{@es_uri} ..."
+
+    mapping   = @importers.dig(index, :mapping)
+    keywords  = @importers.dig(index, :keywords)
+    type_name = index.to_s.chomp('s')
+
+    body = {
+
+      # add mapping
       mappings: {
-        es_index.to_s.chomp('s') => {
+         type_name => {
           dynamic: false,
-          properties: @importers.dig(es_index, :mapping).reduce({}){|a, (k,v)| a.update({k => {type: v}.update(@importers.dig(es_index, :keywords)&.include?(k) ? {fields: {keyword: {type: :keyword}}} : {})})}
+          properties: mapping.reduce({}) do |a, (k, v)|
+
+            # field with only type def, ie. mapping: {user_id: :text}
+            if v.kind_of?(Symbol)
+              field_def = {type: v}
+            # field with ull def, ie. mapping: {user_id: {type: :text, analyzer: :my_analyzer}}
+          elsif v.kind_of?(Hash)
+              field_def = v
+            end
+
+            # optional keywords
+            field_def.update(keywords&.include?(k) ? {fields: {keyword: {type: :keyword}}} : {}) if keywords
+
+            # set field definition
+            a.update(k => field_def)
+          end
         }
       }
     }
+
+    # merge settings if its set
+    settings = @importers.dig(index, :settings)
+    body.update(settings: settings) if settings
+
+    # create index
+    @client.indices.create index: index, body: body
+
     rescue => error
-      puts "Error creating #{es_index} index. #{error.class}: #{error.message}"
+      puts "Error creating #{index} index. #{error.class}: #{error.message}"
       raise
   end
 
-  # create es index
-  def delete_index!(es_index)
-    puts "Deleting #{es_index} index at #{@es_uri} ..."
-    @client.indices.delete index: es_index
+  # delete index
+  def delete_index!(index)
+    puts "Deleting #{index} index at #{@es_uri} ..."
+    @client.indices.delete index: index
     rescue => error
-      puts "Error deleting #{es_index} index. #{error.class}: #{error.message}"
+      puts "Error deleting #{index} index. #{error.class}: #{error.message}"
       raise
   end
 
   # import documents
-  def import(es_index, documents)
+  def import(index, documents)
 
     # import stats init
     start_time = Time.now
     failed = 0; imported = 0
 
     # insert into elastic
-    documents.each_with_index do |document, index|
+    documents.each_with_index do |document, i|
 
       # convert all keys to strings
       document =  _deep_transform_keys_in_object(document, &:to_s)
 
       # generate id
-      id_key  = @importers.dig(es_index, :id_key)
+      id_key  = @importers.dig(index, :id_key)
       id      = document[id_key.to_s] if id_key.is_a?(Symbol) # single key
       id      = id_key.reduce([]){|acc, key| acc << document[key.to_s]}.join('-') if id_key.is_a?(Array) # composite key
 
       # convert keys or add new ones
-      @importers.dig(es_index, :converters)&.each do |keys, converter|
+      @importers.dig(index, :converters)&.each do |keys, converter|
         keys = keys.split('.')
 
         # transform existing key
@@ -99,33 +129,33 @@ module EsImporter
         # add new key
         else
           missing_key_index = nil
-          keys.each_with_index do |key, index|
-            missing_key_index = index and break unless document.dig(*keys.first(index + 1))
+          keys.each_with_index do |key, i|
+            missing_key_index = i and break unless document.dig(*keys.first(i + 1))
           end
 
           tail_keys = keys[missing_key_index..-1]
           tail_hash = keys[0...missing_key_index].reduce(document, :fetch)
 
-          tail_keys.each_with_index do |key, index|
-            tail_hash[tail_keys[index]] = tail_keys.size == index + 1 ? converter.call(document) : {}
-            tail_hash = tail_hash[tail_keys[index]]
+          tail_keys.each_with_index do |key, i|
+            tail_hash[tail_keys[i]] = tail_keys.size == i + 1 ? converter.call(document) : {}
+            tail_hash = tail_hash[tail_keys[i]]
           end
         end
       end
 
       begin
-        @client.index index: es_index, type: es_index.to_s.chomp('s'), id: id, body: document
-        puts "##{index + 1} imported #{id}" if @logger
+        @client.index index: index, type: index.to_s.chomp('s'), id: id, body: document
+        puts "##{i + 1} imported #{id}" if @logger
         imported = imported + 1
       rescue => e
-        puts "##{index + 1} failed #{id}" if @logger
+        puts "##{i + 1} failed #{id}" if @logger
         puts e.class; puts e.message
         failed = failed + 1
       end
     end
 
     # print import statistics
-    puts; puts "#{es_index} import statistics"; puts '-' * 100
+    puts; puts "#{index} import statistics"; puts '-' * 100
     puts "Failed: #{failed}"
     puts "Imported: #{imported}"
     puts "Time spent: #{Time.now - start_time} sec"
