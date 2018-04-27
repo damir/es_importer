@@ -25,7 +25,7 @@ See inline coments:
 require 'es_importer'
 
 # configure client
-EsImporter.configure('http://localhost:9200')
+EsImporter.configure('http://localhost:9200', logger: Logger.new($stdout))
 
 # generate some users
 users = (1..100).to_a.map do |i|
@@ -97,8 +97,17 @@ EsImporter.add_importer(importer)
 # create index
 EsImporter.create_index!(:users)
 
-# import users
+# import single users
+EsImporter.import(:users, users[0])
+
+# import users sequentially
 EsImporter.import(:users, users)
+
+# or import in bulk
+EsImporter.import_in_bulk(:users, users)
+
+# or just transform a document without importing it
+EsImporter.transform_document(:users, users[0])
 
 #  delete index
 EsImporter.delete_index!(:users)
@@ -106,7 +115,6 @@ EsImporter.delete_index!(:users)
 ```
 
 AWS elastic instance is also supported, region is extracted from url and credentials are set form ruby SDK.
-
 
 ## Development
 
