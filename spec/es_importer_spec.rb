@@ -3,10 +3,21 @@ require 'logger'
 
 RSpec.describe EsImporter do
 
-  # set env
+  ### SET ENV
+
+  # local es server
   es_endpoint   = 'http://localhost:9200'
+
+  # or run on aws cluster
+  # es_endpoint = 'https://my_es_cluster_id.us-east-1.es.amazonaws.com'
+
   logger        = Logger.new($stdout)
   logger.level  = 1
+
+  puts
+  puts "es_endpoint: #{es_endpoint}"
+
+  ### INDEX some documents
 
   # init index name and client
   $index    = :es_importer_test_index

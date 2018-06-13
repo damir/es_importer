@@ -21,21 +21,19 @@ module EsImporter
 
     # aws support
     if is_amazon_uri = es_uri.host.include?('es.amazonaws.com')
-      require 'aws-sdk'
-      require 'faraday_middleware/aws_signers_v4'
+      require 'aws-sdk-dynamodb'
+      require 'faraday_middleware/aws_sigv4'
       aws_region = es_uri.host.split('.')[-4]
-      credentials = Aws::ElasticsearchService::Client.new(region: aws_region).instance_eval{@config.credentials}
+      credentials = Aws::DynamoDB::Client.new(region: aws_region).instance_eval{@config.credentials}
     end
 
+    # configure client
     faraday_config = lambda do |faraday|
-      # sign for aws
-      faraday.request :aws_signers_v4,
-          { credentials: credentials,
-            service_name: 'es',
-            region: aws_region} if is_amazon_uri
+      faraday.request :aws_sigv4, credentials: credentials, service: 'es', region: aws_region if is_amazon_uri
       faraday.headers['Content-Type'] = 'application/json'
       faraday.adapter :typhoeus
     end
+
     Elasticsearch::Transport::Transport::HTTP::Faraday.new(hosts: [host_config], &faraday_config)
   end
 
